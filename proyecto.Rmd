@@ -1,0 +1,299 @@
+---
+title: "Análisis de la Calidad del Agua"
+author: "Evelin Calderón Rojas"
+date: "2024-12-13"
+output: 
+  html_document:
+    theme: journal   
+    highlight: tango 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r include=FALSE}
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+library(openintro)
+library(cluster)
+library(NbClust)
+library(factoextra)
+library(knitr)
+library(kableExtra)
+```
+
+## Introducción
+
+Como se ha visto recientemente en varios medios y se ha podido presenciar en varios 
+lugares alrededor del mundo, la calidad del agua ha estado variando y ya no ha sido la 
+misma, por lo que muchas instituciones han optado por buscar otras fuentes para poder 
+suministrar este líquido vital. 
+Esto mismo ha llevado a que se recolecten muestras de diversas fuentes y nacientes de 
+agua para poder ser analizadas y determinar su utilización para fines de uso doméstico y 
+de consumo humano. 
+Esto mismo es lo que se nos ha pedido que realicemos en función de analistas de datos, 
+se nos brindó un dataset, tomado de la página de Kaggle, con una cantidad de muestras tomadas para poder analizar si cumplen con los estándares de uso para poder ser usadas para análisis más detallados 
+en el campo de la microbiología y determinar su uso, ya que, dependiendo de la cantidad 
+de muestras que cumplan los estándares es que se envían para su análisis. 
+
+
+
+## Hipótesis a trabajar 
+
+1. ¿Es seguro afirmar que menos del 50% de las muestras de agua recolectadas se 
+pueden utilizar para uso doméstico?  
+2. Los valores atípicos únicamente nos van a dar resultados negativos y hay que 
+descartarlos. 
+3. ¿Puede entrar en juego una tercera variable? 
+
+
+```{r include=FALSE}
+
+file_path <- "C:/Users/evely/OneDrive/Documentos/Cosas de la U/CUC/IIIC-2024 Lenguajes de minería de datos/Proyecto-EvelinCalderón Rojas/Water Quality Testing.csv"
+datos <- read.csv(file_path, header = TRUE, sep = ",")
+head(datos)
+
+Muestras_agua <- kable(datos, format = "html") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive")) %>%
+  scroll_box(height = "300px")
+```
+
+## Datos suministrados
+
+A continuación se muestran los datos contenidos en el dataset, siendo estos de una cantidad de 500 muestras en total: 
+
+```{r }
+Muestras_agua 
+```
+
+
+
+## Correlaciones
+
+Antes de poder trabajar cada variable es necesario poder hacer sus respectivas 
+correlaciones, ya que aquí es donde podemos observar el comportamiento que tienen 
+unas con otras, ayudándonos más en el análisis y dándonos una mejor guía para trabajar 
+las hipótesis previamente establecidas.
+
+
+```{r echo=FALSE}
+corrMat <- cor(datos)
+corrplot(corrMat,method="ellipse")
+
+```
+
+
+## Datos estadísticos
+
+
+
+```{r}
+summary(datos)
+```
+
+
+Como se puede observar, para las variables que queremos cubrir podemos determinar 
+que los rangos en los que debe encontrarse el pH son los adecuados, ya que, el más bajo 
+es de 6.8 y el más alto de 7.4, lo que nos indica que está en rango aceptable para poder 
+ser usada la muestra. Pasando lo mismo con la conductividad, la cual se encuentra en un 
+rango de 316 y 370, siendo valores que están dentro de los márgenes aceptados para 
+poder usar esa agua. 
+
+
+## Valores atípicos
+
+Tenemos que asegurarnos que cada muestra esté dentro del rango permitido para uso doméstico, por lo cual es necesario encontrar esos valores atípicos que nos puede arrojar luz sobre las muestras y ver, además, con las cantidades de concentración que tengan,cómo pueden afectar. 
+
+Los valores encontrados son los siguientes mostrados en el siguiente gráfico:
+
+
+```{r echo=FALSE}
+boxplot(pH ~ Conductivity_microsegundocm,data = datos, col = "lightblue")
+title("Conductividad del agua según el pH")
+
+```
+
+De ellos podemos determinar que sus valores, tanto atípicos como comunes están todos 
+dentro del rango permitido antes mencionado para que las muestras puedan ser 
+utilizadas, por lo que usarlos para su análisis microbiológico está permitido. 
+Por otra parte, si analizamos cada uno de los valores atípicos, se llega ver que no 
+suponen riesgo para su uso doméstico, y que, además, pueden llegar a ser incluso 
+tratados para limpiarlos más y hacerlos completamente seguros, para darle una seguridad 
+aún mayor para su consumo normal. 
+Ahora bien, explicando un poco más lo que significan los valores atípicos encontrados, se 
+aprecia que, los valores más altos significan que pueden existir algún tipo de minerales y 
+que el agua es alcalina pero no a niveles exagerados, por el contrario, entra en valores de 
+neutralidad, pero pueden ser utilizados incluso en ambientes agrícolas y uso doméstico. 
+Mientras que, los que están más bajos nos indican una ligera acidez en el agua y posible 
+presencia de CO2 y/o algún tipo de bicarbonato y algunos minerales, pero ninguno 
+representa un riesgo para su uso, por lo cual también son seguros de utilizar para su 
+siguiente evaluación.  
+
+
+
+Ahora bien, se presenta además un pequeño gráfico de dispersión, con el fin de observar la tendencia de las muestras:
+
+
+```{r echo=FALSE}
+#Se hace un pequeño gráfico de dispersión para mostrar los datos
+ggplot(datos, aes(x = Conductivity_microsegundocm, y = pH)) +
+  geom_point()
+```
+
+
+## Preparación para Cluster
+
+Es necesario el poder agrupar primeramente por cluster, ya que así se puede observar las similitudes que comparten las muestras, por lo que tomamos los métodos WSS, SILHOUETTE y GAP_STAT para determinar cuál de ellos es más adecuado en nuestro caso.
+
+```{r echo=FALSE}
+#Se hacen varios cálculos para el clúster
+df<- datos
+fviz_nbclust(df, kmeans, method = "wss")
+fviz_nbclust(df, kmeans, method = "silhouette")
+fviz_nbclust(df, kmeans, method = "gap_stat")
+
+```
+
+
+En el caso del algoritmo para clúster, se determinó utilizar el segundo, el de SILHOUETTE, ya que nuestro caso de estudio requiere no mucha agrupación, por lo que se divide en dos para observar el agrupamiento de 
+las muestras, dándonos cuenta de que hay muestras que comparten características en 
+ambos espacios seccionados, por lo que es de tipo jerárquico.
+
+```{r include=FALSE}
+#Se crea el clúster, en este caso se optó por uno de dos clasificaciones
+k2 <- kmeans(df, centers = 2, nstart = 25)
+k2
+```
+
+```{r echo=FALSE}
+fviz_cluster(k2, data = df)
+
+```
+
+
+## Preparación para Modelo de Regresión Lineal
+
+En este caso, el mejor modelo que se puede aplicar es el de regresión lineal, ya que nos 
+ayuda a explicar el comportamiento, en este caso, de pH y conductividad, y como se 
+puede observar en la imagen de abajo: 
+
+```{r include=FALSE}
+#Ponemos en términos de X y Y las variables a utilizar en el gráfico que nos va a ayudar con el modelo lineal
+
+x <- datos$pH
+y <- datos$Conductivity_microsegundocm
+```
+
+```{r echo=FALSE}
+#Se prepara el gráfico para el modelo lineal
+
+plot(x, y,
+     main = "Relación entre pH y la conductividad",
+     xlab = "pH",
+     ylab = "Conductividad",
+     pch = 19, col = "blue")
+
+#Se crea una línea de tendencia, en este caso en color rojo
+#
+abline(lm(Conductivity_microsegundocm ~ pH, data = datos), col = "red", lwd = 2)
+
+```
+
+
+```{r include=FALSE}
+#Se crea el modelo lineal
+#
+modelo <- lm(Conductivity_microsegundocm  ~ pH, data = datos)
+```
+
+```{r echo=FALSE}
+#Datos obtenidos del modelo
+#
+summary(modelo)
+```
+
+
+Se sabe que es cierto que el pH influye en el comportamiento que pueda presentar la 
+conductividad en el análisis, pero que, de cierto modo, hay algo que le falta al análisis 
+para poder estabilizar de una forma más eficaz el modelo y los resultados. 
+
+
+## ¿Tercera variable?
+
+Otro de los factores que también nos pueden ayudar a determinar si una muestra de agua puede ser utilizada para 
+uso humano es la temperatura, ya que esta suele afectar algunos otros niveles.
+
+Debido a lo anterior es que se decide poner a funcionar la variable temperatura, ya que, 
+como es bien sabido, con los cambios de temperatura también pueden cambiar algunas 
+de las variables. 
+Al ejecutar para obtener los resultados obtenemos los siguientes: 
+
+```{r include=FALSE}
+#Se crea un modelo nuevo, esta vez agregando la variable de temperatura para mejorar el modelo
+#Y se muestra la información como en el caso anterior
+#
+modelo_temperatura <- lm(Conductivity_microsegundocm ~ pH + Temperature_Celcius, data = datos)
+
+```
+
+
+```{r}
+summary(modelo_temperatura)
+```
+
+
+Siendo que, juntando las variables de pH y temperatura es mucho más exacto poder 
+predecir y relacionar el comportamiento de la conductividad, tal como se muestra en el 
+siguiente gráfico: 
+
+
+```{r echo=FALSE}
+#Gráfico del modelo nuevo
+#
+ggplot(datos, aes(x = pH, y = Conductivity_microsegundocm, color = Temperature_Celcius)) +
+  geom_point() +
+  geom_smooth(method = "lm", aes(color = NULL), se = FALSE) +
+  labs(
+    title = "Regresión Lineal Múltiple: Relación entre la Conductuvidad y el pH junto con la Temperatura",
+    x = "pH",
+    y = "Conductivity"
+  ) +
+  theme_minimal()
+```
+
+
+## Conclusiones
+
+Gracias a todo el análisis que se ha podido realizar para poder garantizar la calidad de las 
+muestras de agua, es que se llega a la conclusión de que todas las muestras pueden ser 
+utilizadas para su análisis microbiológico y que posteriormente se le dé un uso a las 
+fuentes de las que fueron tomadas para el uso diario en la vida cotidiana humana.
+
+También se pudo observar que los valores en las muestras no exceden a los criterios 
+establecidos para su uso, por lo cual, suponen una ventaja en temas ambientales. 
+Por otra parte, el hecho de que durante el análisis se haya tenido que incorporar otra 
+variable para ver los resultados que se querían es otra forma de analizar la información 
+sobre la marcha, ya que, como se pudo observar, en ciertos casos es necesaria la 
+interacción de más variables para que se pueda dar una mejor solución, como lo fue en 
+este caso, ya que originalmente solo se utilizarían las variables de pH y conductividad, 
+pero a la hora de avanzar la temperatura también jugaba un papel dentro del análisis. 
+
+Ahora bien, como recomendaciones, se puede mencionar que no se deberían descartar 
+aquellas muestras que posean valores atípicos, ya que estas incluso, nos pueden dar una 
+buena calidad del agua para ser usada. 
+Por otra parte, si se considera que no se utilizarán para prevenir factores tal vez no 
+deseados, se recomienda también, hacer un análisis más detallado para poder determinar 
+los factores que están incluyendo en su calidad, y así, ver si es necesario, si se 
+encontrara algún factor alarmante se puede comunicar a las autoridades correspondientes 
+para determinar el proseguir. 
+
+
+
+
+
+
+
